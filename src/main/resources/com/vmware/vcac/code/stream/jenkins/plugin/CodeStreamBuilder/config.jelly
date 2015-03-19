@@ -14,11 +14,11 @@
        </f:entry>
 
       <f:entry title="Password"  field="password">
-          <f:textbox name="password" />
+          <f:password name="password" />
       </f:entry>
 
       <f:entry title="Release Pipeline Name"  field="pipelineName">
-          <f:textbox name="password" />
+          <f:textbox name="pipelineName" />
       </f:entry>
 
 </j:jelly>
