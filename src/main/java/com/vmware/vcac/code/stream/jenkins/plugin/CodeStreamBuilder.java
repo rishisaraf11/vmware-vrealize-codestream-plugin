@@ -11,6 +11,7 @@ import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -50,6 +51,7 @@ import java.security.NoSuchAlgorithmException;
  */
 public class CodeStreamBuilder extends Builder {
 
+    private final String TOKEN_JSON = "{\"username\": \"%s\", \"password\": \"%s\", \"tenant\": \"%s\"}";
     private String serverUrl;
     private String userName;
     private String password;
@@ -99,58 +101,22 @@ public class CodeStreamBuilder extends Builder {
             httpClient = HttpClients.custom().setSSLSocketFactory(
                     sslsf).build();
 
-//            String identityTokenUrl = "https://blr-v144-ip-156.eng.vmware.com" + "/identity/api/tokens";
             String identityTokenUrl = this.serverUrl + "/identity/api/tokens";
-            HttpPost postRequest  = new HttpPost(identityTokenUrl);
-            String tokenPayload = String.format("{\"username\": \"%s\", \"password\": \"%s\", \"tenant\": \"%s\"}", userName, password, tenant);
-//            StringEntity input = new StringEntity("{\"username\": \"fritz@coke.com\", \"password\": \"password\", \"tenant\": \"qe\"}");
-            StringEntity input = new StringEntity(tokenPayload);
+            String tokenPayload = String.format(TOKEN_JSON, userName, password, tenant);
+            HttpResponse response = post(httpClient, identityTokenUrl, tokenPayload, null);
 
-            input.setContentType("application/json");
-
-            postRequest.setEntity(input);
-            postRequest.setHeader("Content-Type", "application/json");
-            HttpResponse response = httpClient.execute(postRequest);
-
-            BufferedReader br = new BufferedReader(
-                    new InputStreamReader((response.getEntity().getContent())));
-
-            StringBuilder output = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) {
-                output.append(line);
-            }
-
-
-            Gson gson = new Gson();
-            JsonElement jsonElement = new JsonParser().parse(output.toString());
+            JsonElement jsonElement = new JsonParser().parse(getResponse(response));
             JsonObject asJsonObject = jsonElement.getAsJsonObject();
             String token = asJsonObject.get("id").getAsString();
 
-            logger.println("Token :" + token);
+            String fetchPipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/?name=" + this.pipelineName ;
+            HttpResponse pipelineResponse = get(httpClient, fetchPipelineUrl, token);
+            String pipeline = getResponse(pipelineResponse);
 
-            String fetchPipeline = this.serverUrl + "/release-management-service/api/release-pipelines/?name=" + this.pipelineName ;
+            logger.println("Pipeline :" + pipeline);
 
-            HttpGet request = new HttpGet(fetchPipeline);
-            request.setHeader("accept", "application/json; charset=utf-8");
-            String autorization = "Bearer " + token;
-            request.setHeader("Authorization", autorization);
-            response = httpClient.execute(request);
-
-            BufferedReader rd = new BufferedReader(
-                    new InputStreamReader(response.getEntity().getContent()));
-
-            StringBuffer resultBuffer = new StringBuffer();
-            line = "";
-            while ((line = rd.readLine()) != null) {
-                resultBuffer.append(line);
-            }
-
-            logger.println("Pipeline :" + resultBuffer);
-
-            jsonElement = new JsonParser().parse(resultBuffer.toString());
+            jsonElement = new JsonParser().parse(pipeline);
             String pipelineId = jsonElement.getAsJsonObject().get("content").getAsJsonArray().get(0).getAsJsonObject().get("id").getAsString();
-
 
             // Execute pipeline
             CloseableHttpClient newClient =  HttpClients.custom().setSSLSocketFactory(
@@ -158,25 +124,12 @@ public class CodeStreamBuilder extends Builder {
             String executePipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/" + pipelineId + "/executions";
             HttpPost executePostRequest  = new HttpPost(executePipelineUrl);
             String payload = String.format("{\"description\": \"%s\"}", "Executed from jenkins");
-            StringEntity inputEntity = new StringEntity(payload);
-            inputEntity.setContentType("application/json");
-            executePostRequest.setEntity(inputEntity);
-            executePostRequest.setHeader("accept", "application/json; charset=utf-8");
-            executePostRequest.setHeader("Authorization", autorization);
 
             newClient.execute(executePostRequest);
 
+            HttpResponse execResponse = post(newClient, executePipelineUrl, payload, token);
 
-//            BufferedReader bre = new BufferedReader(
-//                    new InputStreamReader((executeResponse.getEntity().getContent())));
-//
-//            StringBuilder outputE = new StringBuilder();
-//            String linee;
-//            while ((linee = bre.readLine()) != null) {
-//                outputE.append(linee);
-//            }
-//
-//            logger.println("Execution response :" + outputE);
+            logger.println("Execution response :" + getResponse(execResponse));
 
 
         } catch (NoSuchAlgorithmException e) {
@@ -194,6 +147,43 @@ public class CodeStreamBuilder extends Builder {
 
 
         return true;
+    }
+
+    private String getResponse(HttpResponse response) throws IOException {
+        BufferedReader br = new BufferedReader(
+                new InputStreamReader((response.getEntity().getContent())));
+
+        StringBuilder output = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) {
+            output.append(line);
+        }
+        return output.toString();
+    }
+
+    public HttpResponse get(CloseableHttpClient httpClient, String URL, String token) throws IOException{
+        HttpGet request = new HttpGet(URL);
+        request.setHeader("accept", "application/json; charset=utf-8");
+        if (StringUtils.isNotBlank(token)) {
+            String authorization = "Bearer " + token;
+            request.setHeader("Authorization", authorization);
+        }
+        return httpClient.execute(request);
+    }
+
+
+    private HttpResponse post(CloseableHttpClient httpClient, String URL, String payload, String token) throws IOException {
+        HttpPost postRequest  = new HttpPost(URL);
+        StringEntity input = new StringEntity(payload);
+        input.setContentType("application/json");
+        postRequest.setEntity(input);
+        postRequest.setHeader("Content-Type", "application/json");
+        postRequest.setHeader("accept", "application/json; charset=utf-8");
+        if (StringUtils.isNotBlank(token)) {
+            String authorization = "Bearer " + token;
+            postRequest.setHeader("Authorization", authorization);
+        }
+        return httpClient.execute(postRequest);
     }
 
     /**
