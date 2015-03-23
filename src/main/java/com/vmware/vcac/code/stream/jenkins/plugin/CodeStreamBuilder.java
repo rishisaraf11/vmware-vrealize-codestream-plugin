@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.UnknownHostException;
+import java.util.List;
 
 /**
  * Sample {@link Builder}.
@@ -53,17 +54,19 @@ public class CodeStreamBuilder extends Builder {
     private String tenant;
     private String pipelineName;
     private boolean waitExec;
+    private List<PipelineParam> pipelineParams;
 
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public CodeStreamBuilder(String serverUrl, String userName, String password, String tenant, String pipelineName, boolean waitExec) {
+    public CodeStreamBuilder(String serverUrl, String userName, String password, String tenant, String pipelineName, boolean waitExec, List<PipelineParam> pipelineParams) {
         this.serverUrl = serverUrl;
         this.userName = userName;
         this.password = password;
         this.tenant = tenant;
         this.pipelineName = pipelineName;
         this.waitExec = waitExec;
+        this.pipelineParams = pipelineParams;
     }
 
     public String getServerUrl() {
@@ -84,6 +87,10 @@ public class CodeStreamBuilder extends Builder {
 
     public String getPipelineName() {
         return pipelineName;
+    }
+
+    public List<PipelineParam> getPipelineParams() {
+        return pipelineParams;
     }
 
     public boolean isWaitExec() {
@@ -141,15 +148,19 @@ public class CodeStreamBuilder extends Builder {
                         sslsf).build();
                 String executePipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/" + pipelineId + "/executions";
                 HttpPost executePostRequest = new HttpPost(executePipelineUrl);
-                String payload = String.format("{\"description\": \"%s\"}", "Executed from jenkins");
+                Gson gson = new Gson();
+                String pipelineParamsArray = gson.toJson(pipelineParams);
+                logger.println("Pipeline params :" + pipelineParamsArray);
+                String payload = String.format("{\"description\": \"%s\", \"pipelineParams\": %s}", "Executed from jenkins", pipelineParamsArray);
 
                 newClient.execute(executePostRequest);
 
                 HttpResponse execResponse = post(newClient, executePipelineUrl, payload, token);
                 JsonElement execResponseParse = new JsonParser().parse(getResponse(execResponse));
                 asJsonObject = execResponseParse.getAsJsonObject();
-                String execId = asJsonObject.get("id").getAsString();
-                if (StringUtils.isNotBlank(execId)) {
+                JsonElement execIdElement = asJsonObject.get("id");
+                if (execIdElement != null) {
+                    String execId = execIdElement.getAsString();
                     logger.println("Pipeline executed successfully with execution id :" + execId);
                     if (waitExec) {
                         while (!codeStreamClient.isPipelineCompleted(pipelineId, execId)) {

@@ -26,13 +26,13 @@
       </f:entry>
 
        <f:entry>
-             <f:repeatable var="searchReplace" items="${instance.searchReplace}" noAddButton="false" add="Add Parameter">
+             <f:repeatable name="pipelineParams" field="pipelineParams" noAddButton="false" add="Add Parameter">
                  <table width="100%">
                       <f:entry title="Parameter Name">
-                         <f:textbox field="searchtxt" />
+                         <f:textbox field="name" />
                          </f:entry>
                          <f:entry title="Parameter Value">
-                         <f:textbox field="replacetxt" />
+                         <f:textbox field="value" />
                          </f:entry>
                          <f:entry>
                          <div align="right" class="repeatable-delete show-if-only" style="margin-left: 1em;">
