@@ -26,9 +26,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.UnknownHostException;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 
 /**
  * Sample {@link Builder}.
@@ -55,15 +52,18 @@ public class CodeStreamBuilder extends Builder {
     private String password;
     private String tenant;
     private String pipelineName;
+    private boolean waitExec;
+
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public CodeStreamBuilder(String serverUrl, String userName, String password, String tenant, String pipelineName) {
+    public CodeStreamBuilder(String serverUrl, String userName, String password, String tenant, String pipelineName, boolean waitExec) {
         this.serverUrl = serverUrl;
         this.userName = userName;
         this.password = password;
         this.tenant = tenant;
         this.pipelineName = pipelineName;
+        this.waitExec = waitExec;
     }
 
     public String getServerUrl() {
@@ -84,6 +84,10 @@ public class CodeStreamBuilder extends Builder {
 
     public String getPipelineName() {
         return pipelineName;
+    }
+
+    public boolean isWaitExec() {
+        return waitExec;
     }
 
     @Override
@@ -112,6 +116,8 @@ public class CodeStreamBuilder extends Builder {
 
             String token = idElement.getAsString();
 
+            CodeStreamClient codeStreamClient = new CodeStreamClient(serverUrl, token);
+
             String fetchPipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/?name=" + this.pipelineName;
             HttpResponse pipelineResponse = get(httpClient, fetchPipelineUrl, token);
             String pipeline = getResponse(pipelineResponse);
@@ -126,6 +132,10 @@ public class CodeStreamBuilder extends Builder {
             if (contents.size() == 1) {
                 String pipelineId = contents.get(0).getAsJsonObject().get("id").getAsString();
                 logger.println("Successfully fetched Pipeline with id:" + pipelineId);
+                String status = contents.get(0).getAsJsonObject().get("status").getAsString();
+                if (!status.equals("ACTIVATED")) {
+                    throw new IOException(pipelineName +  " is not activated");
+                }
                 // Execute pipeline
                 CloseableHttpClient newClient = HttpClients.custom().setSSLSocketFactory(
                         sslsf).build();
@@ -138,7 +148,29 @@ public class CodeStreamBuilder extends Builder {
                 HttpResponse execResponse = post(newClient, executePipelineUrl, payload, token);
                 JsonElement execResponseParse = new JsonParser().parse(getResponse(execResponse));
                 asJsonObject = execResponseParse.getAsJsonObject();
-                handleError(asJsonObject);
+                String execId = asJsonObject.get("id").getAsString();
+                if (StringUtils.isNotBlank(execId)) {
+                    logger.println("Pipeline executed successfully with execution id :" + execId);
+                    if (waitExec) {
+                        while (!codeStreamClient.isPipelineCompleted(pipelineId, execId)) {
+                           logger.println("Waiting for pipeline to complete");
+                           Thread.sleep(10*1000);
+                        }
+                        ExecutionStatus pipelineExecStatus = codeStreamClient.getPipelineExecStatus(pipelineId, execId);
+                        switch (pipelineExecStatus) {
+                            case COMPLETED:
+                                logger.println("Pipeline complete successfully");
+                                break;
+                            case FAILED:
+                                logger.println("Pipeline execution failed");
+                                throw new IOException("Pipeline execution failed. Please go to CodeStream for more details");
+                            case CANCELED:
+                                throw new IOException("Pipeline execution cancelled. Please go to CodeStream for more details");
+                        }
+                    }
+                }  else {
+                    handleError(asJsonObject);
+                }
 
                 logger.println("Execution response :" + getResponse(execResponse));
 

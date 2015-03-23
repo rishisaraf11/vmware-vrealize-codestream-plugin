@@ -21,6 +21,10 @@
           <f:textbox name="pipelineName" />
       </f:entry>
 
+      <f:entry title="Execute and Wait"  field="waitExec">
+                <f:checkbox name="waitExec" />
+      </f:entry>
+
        <f:entry>
              <f:repeatable var="searchReplace" items="${instance.searchReplace}" noAddButton="false" add="Add Parameter">
                  <table width="100%">
