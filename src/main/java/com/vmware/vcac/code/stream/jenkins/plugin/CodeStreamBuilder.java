@@ -1,9 +1,6 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -28,6 +25,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.UnknownHostException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -107,46 +105,75 @@ public class CodeStreamBuilder extends Builder {
 
             JsonElement jsonElement = new JsonParser().parse(getResponse(response));
             JsonObject asJsonObject = jsonElement.getAsJsonObject();
-            String token = asJsonObject.get("id").getAsString();
+            JsonElement idElement = asJsonObject.get("id");
+            if (idElement == null) {
+                handleError(asJsonObject);
+            }
 
-            String fetchPipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/?name=" + this.pipelineName ;
+            String token = idElement.getAsString();
+
+            String fetchPipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/?name=" + this.pipelineName;
             HttpResponse pipelineResponse = get(httpClient, fetchPipelineUrl, token);
             String pipeline = getResponse(pipelineResponse);
 
-            logger.println("Pipeline :" + pipeline);
-
             jsonElement = new JsonParser().parse(pipeline);
-            String pipelineId = jsonElement.getAsJsonObject().get("content").getAsJsonArray().get(0).getAsJsonObject().get("id").getAsString();
+            asJsonObject = jsonElement.getAsJsonObject();
+            JsonElement contentElement = asJsonObject.get("content");
+            if (contentElement == null) {
+                handleError(asJsonObject);
+            }
+            JsonArray contents = contentElement.getAsJsonArray();
+            if (contents.size() == 1) {
+                String pipelineId = contents.get(0).getAsJsonObject().get("id").getAsString();
+                logger.println("Successfully fetched Pipeline with id:" + pipelineId);
+                // Execute pipeline
+                CloseableHttpClient newClient = HttpClients.custom().setSSLSocketFactory(
+                        sslsf).build();
+                String executePipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/" + pipelineId + "/executions";
+                HttpPost executePostRequest = new HttpPost(executePipelineUrl);
+                String payload = String.format("{\"description\": \"%s\"}", "Executed from jenkins");
 
-            // Execute pipeline
-            CloseableHttpClient newClient =  HttpClients.custom().setSSLSocketFactory(
-                    sslsf).build();
-            String executePipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/" + pipelineId + "/executions";
-            HttpPost executePostRequest  = new HttpPost(executePipelineUrl);
-            String payload = String.format("{\"description\": \"%s\"}", "Executed from jenkins");
+                newClient.execute(executePostRequest);
 
-            newClient.execute(executePostRequest);
+                HttpResponse execResponse = post(newClient, executePipelineUrl, payload, token);
+                JsonElement execResponseParse = new JsonParser().parse(getResponse(execResponse));
+                asJsonObject = execResponseParse.getAsJsonObject();
+                handleError(asJsonObject);
 
-            HttpResponse execResponse = post(newClient, executePipelineUrl, payload, token);
+                logger.println("Execution response :" + getResponse(execResponse));
 
-            logger.println("Execution response :" + getResponse(execResponse));
+            } else {
+                if (contents.size() > 1) {
+                    throw new IOException("More than one pipeline with name " + pipelineName + " found");
+                } else if (contents.size() < 1) {
+                    throw new IOException("Pipeline with name " + pipelineName + " not found");
+                }
+            }
 
 
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (KeyStoreException e) {
-            e.printStackTrace();
+
+        } catch (UnknownHostException e) {
+            throw e;
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IOException(e.getMessage());
         } finally {
             httpClient.close();
         }
 
-
-
-
-
         return true;
+    }
+
+    private void handleError(JsonObject asJsonObject) throws IOException {
+        JsonElement errorElement = asJsonObject.get("errors");
+        if (errorElement != null) {
+            JsonObject errorElJsonObj = errorElement.getAsJsonArray().get(0).getAsJsonObject();
+            JsonElement messageEle = errorElJsonObj.get("systemMessage");
+            if (messageEle == null) {
+                messageEle =  errorElJsonObj.get("message");
+            }
+            String systemErrorMessage = messageEle.toString();
+            throw new IOException(systemErrorMessage);
+        }
     }
 
     private String getResponse(HttpResponse response) throws IOException {
@@ -161,7 +188,7 @@ public class CodeStreamBuilder extends Builder {
         return output.toString();
     }
 
-    public HttpResponse get(CloseableHttpClient httpClient, String URL, String token) throws IOException{
+    public HttpResponse get(CloseableHttpClient httpClient, String URL, String token) throws IOException {
         HttpGet request = new HttpGet(URL);
         request.setHeader("accept", "application/json; charset=utf-8");
         if (StringUtils.isNotBlank(token)) {
@@ -173,7 +200,7 @@ public class CodeStreamBuilder extends Builder {
 
 
     private HttpResponse post(CloseableHttpClient httpClient, String URL, String payload, String token) throws IOException {
-        HttpPost postRequest  = new HttpPost(URL);
+        HttpPost postRequest = new HttpPost(URL);
         StringEntity input = new StringEntity(payload);
         input.setContentType("application/json");
         postRequest.setEntity(input);
