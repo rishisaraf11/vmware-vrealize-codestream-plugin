@@ -1,6 +1,7 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -12,12 +13,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.ssl.SSLContextBuilder;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -47,7 +44,6 @@ import java.util.List;
  */
 public class CodeStreamBuilder extends Builder {
 
-    private final String TOKEN_JSON = "{\"username\": \"%s\", \"password\": \"%s\", \"tenant\": \"%s\"}";
     private String serverUrl;
     private String userName;
     private String password;
@@ -100,109 +96,48 @@ public class CodeStreamBuilder extends Builder {
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         PrintStream logger = listener.getLogger();
-        SSLContextBuilder builder = new SSLContextBuilder();
-        CloseableHttpClient httpClient = null;
         try {
-            builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
-            SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
-                    builder.build());
-
-            httpClient = HttpClients.custom().setSSLSocketFactory(
-                    sslsf).build();
-
-            String identityTokenUrl = this.serverUrl + "/identity/api/tokens";
-            String tokenPayload = String.format(TOKEN_JSON, userName, password, tenant);
-            HttpResponse response = post(httpClient, identityTokenUrl, tokenPayload, null);
-
-            JsonElement jsonElement = new JsonParser().parse(getResponse(response));
-            JsonObject asJsonObject = jsonElement.getAsJsonObject();
-            JsonElement idElement = asJsonObject.get("id");
-            if (idElement == null) {
-                handleError(asJsonObject);
+            CodeStreamClient codeStreamClient = new CodeStreamClient(serverUrl, userName, password, tenant);
+            JsonObject pipelineJsonObj = codeStreamClient.fetchPipeline(pipelineName);
+            String pipelineId = pipelineJsonObj.get("id").getAsString();
+            String status = pipelineJsonObj.get("status").getAsString();
+            logger.println("Successfully fetched Pipeline with id:" + pipelineId);
+            if (!status.equals("ACTIVATED")) {
+                throw new IOException(pipelineName + " is not activated");
             }
 
-            String token = idElement.getAsString();
-
-            CodeStreamClient codeStreamClient = new CodeStreamClient(serverUrl, token);
-
-            String fetchPipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/?name=" + this.pipelineName;
-            HttpResponse pipelineResponse = get(httpClient, fetchPipelineUrl, token);
-            String pipeline = getResponse(pipelineResponse);
-
-            jsonElement = new JsonParser().parse(pipeline);
-            asJsonObject = jsonElement.getAsJsonObject();
-            JsonElement contentElement = asJsonObject.get("content");
-            if (contentElement == null) {
-                handleError(asJsonObject);
-            }
-            JsonArray contents = contentElement.getAsJsonArray();
-            if (contents.size() == 1) {
-                String pipelineId = contents.get(0).getAsJsonObject().get("id").getAsString();
-                logger.println("Successfully fetched Pipeline with id:" + pipelineId);
-                String status = contents.get(0).getAsJsonObject().get("status").getAsString();
-                if (!status.equals("ACTIVATED")) {
-                    throw new IOException(pipelineName +  " is not activated");
-                }
-                // Execute pipeline
-                CloseableHttpClient newClient = HttpClients.custom().setSSLSocketFactory(
-                        sslsf).build();
-                String executePipelineUrl = this.serverUrl + "/release-management-service/api/release-pipelines/" + pipelineId + "/executions";
-                HttpPost executePostRequest = new HttpPost(executePipelineUrl);
-                Gson gson = new Gson();
-                String pipelineParamsArray = gson.toJson(pipelineParams);
-                logger.println("Pipeline params :" + pipelineParamsArray);
-                String payload = String.format("{\"description\": \"%s\", \"pipelineParams\": %s}", "Executed from jenkins", pipelineParamsArray);
-
-                newClient.execute(executePostRequest);
-
-                HttpResponse execResponse = post(newClient, executePipelineUrl, payload, token);
-                JsonElement execResponseParse = new JsonParser().parse(getResponse(execResponse));
-                asJsonObject = execResponseParse.getAsJsonObject();
-                JsonElement execIdElement = asJsonObject.get("id");
-                if (execIdElement != null) {
-                    String execId = execIdElement.getAsString();
-                    logger.println("Pipeline executed successfully with execution id :" + execId);
-                    if (waitExec) {
-                        while (!codeStreamClient.isPipelineCompleted(pipelineId, execId)) {
-                           logger.println("Waiting for pipeline to complete");
-                           Thread.sleep(10*1000);
-                        }
-                        ExecutionStatus pipelineExecStatus = codeStreamClient.getPipelineExecStatus(pipelineId, execId);
-                        switch (pipelineExecStatus) {
-                            case COMPLETED:
-                                logger.println("Pipeline complete successfully");
-                                break;
-                            case FAILED:
-                                logger.println("Pipeline execution failed");
-                                throw new IOException("Pipeline execution failed. Please go to CodeStream for more details");
-                            case CANCELED:
-                                throw new IOException("Pipeline execution cancelled. Please go to CodeStream for more details");
-                        }
+            JsonObject execJsonRes = codeStreamClient.executePipeline(pipelineId, pipelineParams);
+            JsonElement execIdElement = execJsonRes.get("id");
+            if (execIdElement != null) {
+                String execId = execIdElement.getAsString();
+                logger.println("Pipeline executed successfully with execution id :" + execId);
+                if (waitExec) {
+                    while (!codeStreamClient.isPipelineCompleted(pipelineId, execId)) {
+                        logger.println("Waiting for pipeline execution to complete");
+                        Thread.sleep(10 * 1000);
                     }
-                }  else {
-                    handleError(asJsonObject);
+                    ExecutionStatus pipelineExecStatus = codeStreamClient.getPipelineExecStatus(pipelineId, execId);
+                    switch (pipelineExecStatus) {
+                        case COMPLETED:
+                            logger.println("Pipeline complete successfully");
+                            break;
+                        case FAILED:
+                            logger.println("Pipeline execution failed");
+                            throw new IOException("Pipeline execution failed. Please go to CodeStream for more details");
+                        case CANCELED:
+                            throw new IOException("Pipeline execution cancelled. Please go to CodeStream for more details");
+                    }
                 }
-
-                logger.println("Execution response :" + getResponse(execResponse));
-
             } else {
-                if (contents.size() > 1) {
-                    throw new IOException("More than one pipeline with name " + pipelineName + " found");
-                } else if (contents.size() < 1) {
-                    throw new IOException("Pipeline with name " + pipelineName + " not found");
-                }
+                handleError(execJsonRes);
             }
-
 
 
         } catch (UnknownHostException e) {
             throw e;
         } catch (Exception e) {
             throw new IOException(e.getMessage());
-        } finally {
-            httpClient.close();
         }
-
         return true;
     }
 
@@ -212,7 +147,7 @@ public class CodeStreamBuilder extends Builder {
             JsonObject errorElJsonObj = errorElement.getAsJsonArray().get(0).getAsJsonObject();
             JsonElement messageEle = errorElJsonObj.get("systemMessage");
             if (messageEle == null) {
-                messageEle =  errorElJsonObj.get("message");
+                messageEle = errorElJsonObj.get("message");
             }
             String systemErrorMessage = messageEle.toString();
             throw new IOException(systemErrorMessage);

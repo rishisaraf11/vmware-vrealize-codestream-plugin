@@ -1,8 +1,6 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -20,23 +18,84 @@ import java.io.InputStreamReader;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 /**
  * Created by rsaraf on 3/23/2015.
  */
 public class CodeStreamClient {
-    private String serverUrl;
     private String token;
-    private String CHECK_EXEC_STATUS = "%s/release-management-service/api/release-pipelines/%s/executions/%s";
+    private String CODESTREAM_API_URL = "";
+    private String FETCH_TOKEN = "";
+    private String CHECK_EXEC_STATUS = "";
+    private String FETCH_PIPELINE = "";
+    private String EXECUTE_PIPELINE = "";
+    private String TOKEN_JSON = "{\"username\": \"%s\", \"password\": \"%s\", \"tenant\": \"%s\"}";
+    private String EXEC_PAYLOAD = "{\"description\": \"%s\", \"pipelineParams\": %s}";
 
-    public CodeStreamClient(String serverUrl, String token) {
-        this.serverUrl = serverUrl;
-        this.token = token;
+    public CodeStreamClient(String serverUrl, String userName, String password, String tenant) throws IOException {
+        this.FETCH_TOKEN =  serverUrl +  "/identity/api/tokens";
+        this.CODESTREAM_API_URL =   serverUrl + "/release-management-service/api/release-pipelines/";
+        this.FETCH_PIPELINE = CODESTREAM_API_URL + "?name=%s";
+        this.EXECUTE_PIPELINE = CODESTREAM_API_URL + "%s/executions";
+        this.CHECK_EXEC_STATUS = CODESTREAM_API_URL + "%s/executions/%s";
+        this.token = populateToken(userName, password, tenant);
+    }
+
+    private String populateToken(String userName, String password, String tenant) throws IOException {
+        String tokenPayload = String.format(TOKEN_JSON, userName, password, tenant);
+        HttpResponse httpResponse = this.post(FETCH_TOKEN, tokenPayload);
+        String responseAsJson = this.getResponseAsJsonString(httpResponse);
+        JsonObject stringJsonAsObject = getJsonObject(responseAsJson);
+        JsonElement idElement = stringJsonAsObject.get("id");
+        if (idElement == null) {
+            handleError(stringJsonAsObject);
+        }  else {
+            token = idElement.getAsString();
+        }
+        return token;
+    }
+
+    public JsonObject fetchPipeline(String pipelineName) throws IOException {
+        JsonObject response = null;
+        String url = String.format(FETCH_PIPELINE, pipelineName);
+        HttpResponse pipelineResponse = get(url);
+        String responseAsJson = this.getResponseAsJsonString(pipelineResponse);
+        JsonObject stringJsonAsObject = getJsonObject(responseAsJson);
+        JsonElement contentElement = stringJsonAsObject.get("content");
+        if (contentElement == null) {
+            handleError(stringJsonAsObject);
+        } else {
+            JsonArray contents = contentElement.getAsJsonArray();
+            if (contents.size() == 1) {
+                response = contents.get(0).getAsJsonObject();
+            } else {
+                if (contents.size() > 1) {
+                    throw new IOException("More than one pipeline with name " + pipelineName + " found");
+                } else if (contents.size() < 1) {
+                    throw new IOException("Pipeline with name " + pipelineName + " not found");
+                }
+            }
+        }
+        return response;
+    }
+
+    public JsonObject executePipeline(String pipelineId, List<PipelineParam> pipelineParams) throws IOException {
+        JsonObject response = null;
+        String url = String.format(EXECUTE_PIPELINE, pipelineId);
+        Gson gson = new Gson();
+        String pipelineParamsArray = gson.toJson(pipelineParams);
+
+        String payload = String.format("{\"description\": \"%s\", \"pipelineParams\": %s}", "Executed from jenkins", pipelineParamsArray);
+        HttpResponse httpResponse = this.post(url, payload);
+        String responseAsJson = this.getResponseAsJsonString(httpResponse);
+        response = getJsonObject(responseAsJson);
+        return response;
     }
 
     public ExecutionStatus getPipelineExecStatus(String pipelineId, String pipelineExecId) throws IOException {
         ExecutionStatus executionStatus = null;
-        String url = String.format(CHECK_EXEC_STATUS, serverUrl, pipelineId, pipelineExecId);
+        String url = String.format(CHECK_EXEC_STATUS, pipelineId, pipelineExecId);
         HttpResponse httpResponse = this.get(url);
         String responseAsJson = this.getResponseAsJsonString(httpResponse);
         JsonObject stringJsonAsObject = getJsonObject(responseAsJson);
@@ -98,7 +157,7 @@ public class CodeStreamClient {
     }
 
 
-    private HttpResponse post(String URL, String payload, String token) throws IOException {
+    private HttpResponse post(String URL, String payload) throws IOException {
         CloseableHttpClient httpClient = null;
         try {
             httpClient = getHttpClient();
@@ -133,6 +192,19 @@ public class CodeStreamClient {
             output.append(line);
         }
         return output.toString();
+    }
+
+    private void handleError(JsonObject asJsonObject) throws IOException {
+        JsonElement errorElement = asJsonObject.get("errors");
+        if (errorElement != null) {
+            JsonObject errorElJsonObj = errorElement.getAsJsonArray().get(0).getAsJsonObject();
+            JsonElement messageEle = errorElJsonObj.get("systemMessage");
+            if (messageEle == null) {
+                messageEle =  errorElJsonObj.get("message");
+            }
+            String systemErrorMessage = messageEle.toString();
+            throw new IOException(systemErrorMessage);
+        }
     }
 
 }

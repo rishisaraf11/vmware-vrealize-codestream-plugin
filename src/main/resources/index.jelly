@@ -3,5 +3,5 @@
   This view is used to render the installed plugins page.
 -->
 <div>
-  Integrates Jenkins with vmware CodeStream system using rest client.
+  This plugin adds CodeStream support to Jenkins
 </div>
