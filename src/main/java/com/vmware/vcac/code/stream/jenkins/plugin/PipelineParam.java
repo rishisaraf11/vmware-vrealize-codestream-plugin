@@ -14,6 +14,7 @@ import java.io.Serializable;
 @ExportedBean
 public class PipelineParam extends AbstractDescribableImpl<PipelineParam> implements Serializable {
     private String name;
+
     private String type="STRING";
     private String description="";
     private String value;
