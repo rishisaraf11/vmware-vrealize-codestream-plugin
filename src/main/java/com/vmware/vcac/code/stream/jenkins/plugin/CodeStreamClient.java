@@ -194,7 +194,7 @@ public class CodeStreamClient {
         return output.toString();
     }
 
-    private void handleError(JsonObject asJsonObject) throws IOException {
+    public void handleError(JsonObject asJsonObject) throws IOException {
         JsonElement errorElement = asJsonObject.get("errors");
         if (errorElement != null) {
             JsonObject errorElJsonObj = errorElement.getAsJsonArray().get(0).getAsJsonObject();

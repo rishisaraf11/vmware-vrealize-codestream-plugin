@@ -1,7 +1,5 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -9,20 +7,12 @@ import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
-import org.apache.commons.lang.StringUtils;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.net.UnknownHostException;
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -42,7 +32,7 @@ import java.util.List;
  *
  * @author Rishi Saraf
  */
-public class CodeStreamBuilder extends Builder {
+public class CodeStreamBuilder extends Builder implements Serializable{
 
     private String serverUrl;
     private String userName;
@@ -96,100 +86,12 @@ public class CodeStreamBuilder extends Builder {
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         PrintStream logger = listener.getLogger();
-        try {
-            CodeStreamClient codeStreamClient = new CodeStreamClient(serverUrl, userName, password, tenant);
-            JsonObject pipelineJsonObj = codeStreamClient.fetchPipeline(pipelineName);
-            String pipelineId = pipelineJsonObj.get("id").getAsString();
-            String status = pipelineJsonObj.get("status").getAsString();
-            logger.println("Successfully fetched Pipeline with id:" + pipelineId);
-            if (!status.equals("ACTIVATED")) {
-                throw new IOException(pipelineName + " is not activated");
-            }
-
-            JsonObject execJsonRes = codeStreamClient.executePipeline(pipelineId, pipelineParams);
-            JsonElement execIdElement = execJsonRes.get("id");
-            if (execIdElement != null) {
-                String execId = execIdElement.getAsString();
-                logger.println("Pipeline executed successfully with execution id :" + execId);
-                if (waitExec) {
-                    while (!codeStreamClient.isPipelineCompleted(pipelineId, execId)) {
-                        logger.println("Waiting for pipeline execution to complete");
-                        Thread.sleep(10 * 1000);
-                    }
-                    ExecutionStatus pipelineExecStatus = codeStreamClient.getPipelineExecStatus(pipelineId, execId);
-                    switch (pipelineExecStatus) {
-                        case COMPLETED:
-                            logger.println("Pipeline complete successfully");
-                            break;
-                        case FAILED:
-                            logger.println("Pipeline execution failed");
-                            throw new IOException("Pipeline execution failed. Please go to CodeStream for more details");
-                        case CANCELED:
-                            throw new IOException("Pipeline execution cancelled. Please go to CodeStream for more details");
-                    }
-                }
-            } else {
-                handleError(execJsonRes);
-            }
-
-
-        } catch (UnknownHostException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IOException(e.getMessage());
-        }
+        logger.println("Starting CodeStream pipeline execution");
+        CodeStreamPipelineCallable callable = new CodeStreamPipelineCallable(serverUrl, userName, password, tenant, pipelineName,  pipelineParams, waitExec);
+        launcher.getChannel().call(callable);
         return true;
     }
 
-    private void handleError(JsonObject asJsonObject) throws IOException {
-        JsonElement errorElement = asJsonObject.get("errors");
-        if (errorElement != null) {
-            JsonObject errorElJsonObj = errorElement.getAsJsonArray().get(0).getAsJsonObject();
-            JsonElement messageEle = errorElJsonObj.get("systemMessage");
-            if (messageEle == null) {
-                messageEle = errorElJsonObj.get("message");
-            }
-            String systemErrorMessage = messageEle.toString();
-            throw new IOException(systemErrorMessage);
-        }
-    }
-
-    private String getResponse(HttpResponse response) throws IOException {
-        BufferedReader br = new BufferedReader(
-                new InputStreamReader((response.getEntity().getContent())));
-
-        StringBuilder output = new StringBuilder();
-        String line;
-        while ((line = br.readLine()) != null) {
-            output.append(line);
-        }
-        return output.toString();
-    }
-
-    public HttpResponse get(CloseableHttpClient httpClient, String URL, String token) throws IOException {
-        HttpGet request = new HttpGet(URL);
-        request.setHeader("accept", "application/json; charset=utf-8");
-        if (StringUtils.isNotBlank(token)) {
-            String authorization = "Bearer " + token;
-            request.setHeader("Authorization", authorization);
-        }
-        return httpClient.execute(request);
-    }
-
-
-    private HttpResponse post(CloseableHttpClient httpClient, String URL, String payload, String token) throws IOException {
-        HttpPost postRequest = new HttpPost(URL);
-        StringEntity input = new StringEntity(payload);
-        input.setContentType("application/json");
-        postRequest.setEntity(input);
-        postRequest.setHeader("Content-Type", "application/json");
-        postRequest.setHeader("accept", "application/json; charset=utf-8");
-        if (StringUtils.isNotBlank(token)) {
-            String authorization = "Bearer " + token;
-            postRequest.setHeader("Authorization", authorization);
-        }
-        return httpClient.execute(postRequest);
-    }
 
     /**
      * We'll use this from the <tt>config.jelly</tt>.
