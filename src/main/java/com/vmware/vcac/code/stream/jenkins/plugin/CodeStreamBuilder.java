@@ -1,10 +1,12 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
+import hudson.model.EnvironmentContributingAction;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -13,7 +15,9 @@ import org.kohsuke.stapler.StaplerRequest;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Sample {@link Builder}.
@@ -88,7 +92,10 @@ public class CodeStreamBuilder extends Builder implements Serializable{
         PrintStream logger = listener.getLogger();
         logger.println("Starting CodeStream pipeline execution");
         CodeStreamPipelineCallable callable = new CodeStreamPipelineCallable(serverUrl, userName, password, tenant, pipelineName,  pipelineParams, waitExec);
-        launcher.getChannel().call(callable);
+        Map<String, String> envVariables = launcher.getChannel().call(callable);
+        CodeStreamEnvAction action = new CodeStreamEnvAction();
+        action.addAll(envVariables);
+        build.addAction(action);
         return true;
     }
 
@@ -183,6 +190,43 @@ public class CodeStreamBuilder extends Builder implements Serializable{
 
         public String getPipelineName() {
             return pipelineName;
+        }
+    }
+
+    public static class CodeStreamEnvAction implements EnvironmentContributingAction {
+        private transient Map<String, String> data = new HashMap<String, String>();
+
+        private void add(String key, String val) {
+            if (data == null) return;
+            data.put(key, val);
+        }
+
+        private void addAll(Map<String, String> map) {
+              data.putAll(map);
+        }
+
+        @Override
+        public void buildEnvVars(AbstractBuild<?, ?> build, EnvVars env) {
+            if (data != null) env.putAll(data);
+        }
+
+        @Override
+        public String getIconFileName() {
+            return null;
+        }
+
+        @Override
+        public String getDisplayName() {
+            return null;
+        }
+
+        @Override
+        public String getUrlName() {
+            return null;
+        }
+
+        public Map<String, String> getData() {
+            return data;
         }
     }
 }

@@ -1,6 +1,9 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
 import com.google.gson.*;
+import hudson.EnvVars;
+import hudson.model.AbstractBuild;
+import hudson.model.EnvironmentContributingAction;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -18,7 +21,9 @@ import java.io.InputStreamReader;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by rsaraf on 3/23/2015.
@@ -34,8 +39,8 @@ public class CodeStreamClient {
     private String EXEC_PAYLOAD = "{\"description\": \"%s\", \"pipelineParams\": %s}";
 
     public CodeStreamClient(String serverUrl, String userName, String password, String tenant) throws IOException {
-        this.FETCH_TOKEN =  serverUrl +  "/identity/api/tokens";
-        this.CODESTREAM_API_URL =   serverUrl + "/release-management-service/api/release-pipelines/";
+        this.FETCH_TOKEN = serverUrl + "/identity/api/tokens";
+        this.CODESTREAM_API_URL = serverUrl + "/release-management-service/api/release-pipelines/";
         this.FETCH_PIPELINE = CODESTREAM_API_URL + "?name=%s";
         this.EXECUTE_PIPELINE = CODESTREAM_API_URL + "%s/executions";
         this.CHECK_EXEC_STATUS = CODESTREAM_API_URL + "%s/executions/%s";
@@ -50,7 +55,7 @@ public class CodeStreamClient {
         JsonElement idElement = stringJsonAsObject.get("id");
         if (idElement == null) {
             handleError(stringJsonAsObject);
-        }  else {
+        } else {
             token = idElement.getAsString();
         }
         return token;
@@ -200,7 +205,7 @@ public class CodeStreamClient {
             JsonObject errorElJsonObj = errorElement.getAsJsonArray().get(0).getAsJsonObject();
             JsonElement messageEle = errorElJsonObj.get("systemMessage");
             if (messageEle == null) {
-                messageEle =  errorElJsonObj.get("message");
+                messageEle = errorElJsonObj.get("message");
             }
             String systemErrorMessage = messageEle.toString();
             throw new IOException(systemErrorMessage);

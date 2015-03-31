@@ -2,18 +2,24 @@ package com.vmware.vcac.code.stream.jenkins.plugin;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import hudson.EnvVars;
+import hudson.model.AbstractBuild;
+import hudson.model.EnvironmentContributingAction;
 import hudson.remoting.Callable;
 import org.jenkinsci.remoting.RoleChecker;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by rsaraf on 3/25/2015.
  */
-public class CodeStreamPipelineCallable implements Callable<Void, IOException>, Serializable {
+public class CodeStreamPipelineCallable implements Callable<Map<String,String>, IOException>, Serializable {
+    private AbstractBuild<?, ?> build;
     private String serverUrl;
     private String userName;
     private String password;
@@ -34,8 +40,8 @@ public class CodeStreamPipelineCallable implements Callable<Void, IOException>, 
     }
 
     @Override
-    public Void call() throws IOException {
-
+    public Map<String,String> call() throws IOException {
+        Map<String,String> data = new HashMap<String,String>();
         try {
             CodeStreamClient codeStreamClient = new CodeStreamClient(serverUrl, userName, password, tenant);
             JsonObject pipelineJsonObj = codeStreamClient.fetchPipeline(pipelineName);
@@ -50,6 +56,7 @@ public class CodeStreamPipelineCallable implements Callable<Void, IOException>, 
             JsonElement execIdElement = execJsonRes.get("id");
             if (execIdElement != null) {
                 String execId = execIdElement.getAsString();
+                data.put("CS_PIPELINE_EXECUTION_ID", execId);
                 System.out.println("Pipeline executed successfully with execution id :" + execId);
                 if (waitExec) {
                     while (!codeStreamClient.isPipelineCompleted(pipelineId, execId)) {
@@ -57,6 +64,7 @@ public class CodeStreamPipelineCallable implements Callable<Void, IOException>, 
                         Thread.sleep(10 * 1000);
                     }
                     ExecutionStatus pipelineExecStatus = codeStreamClient.getPipelineExecStatus(pipelineId, execId);
+                    data.put("CS_PIPELINE_EXECUTION_STATUS", pipelineExecStatus.toString());
                     switch (pipelineExecStatus) {
                         case COMPLETED:
                             System.out.println("Pipeline complete successfully");
@@ -74,11 +82,13 @@ public class CodeStreamPipelineCallable implements Callable<Void, IOException>, 
         } catch (Exception e) {
             throw new IOException(e.getMessage());
         }
-        return null;
+        return data;
     }
 
     @Override
     public void checkRoles(RoleChecker roleChecker) throws SecurityException {
 
     }
+
+
 }
