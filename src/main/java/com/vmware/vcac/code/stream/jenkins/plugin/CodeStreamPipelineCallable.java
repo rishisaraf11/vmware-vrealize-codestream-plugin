@@ -2,14 +2,10 @@ package com.vmware.vcac.code.stream.jenkins.plugin;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import hudson.EnvVars;
 import hudson.model.AbstractBuild;
-import hudson.model.EnvironmentContributingAction;
 import hudson.remoting.Callable;
-import org.jenkinsci.remoting.RoleChecker;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +35,6 @@ public class CodeStreamPipelineCallable implements Callable<Map<String,String>, 
         this.waitExec = waitExec;
     }
 
-    @Override
     public Map<String,String> call() throws IOException {
         Map<String,String> data = new HashMap<String,String>();
         try {
@@ -83,11 +78,6 @@ public class CodeStreamPipelineCallable implements Callable<Map<String,String>, 
             throw new IOException(e.getMessage());
         }
         return data;
-    }
-
-    @Override
-    public void checkRoles(RoleChecker roleChecker) throws SecurityException {
-
     }
 
 

@@ -205,28 +205,21 @@ public class CodeStreamBuilder extends Builder implements Serializable{
               data.putAll(map);
         }
 
-        @Override
-        public void buildEnvVars(AbstractBuild<?, ?> build, EnvVars env) {
-            if (data != null) env.putAll(data);
+
+        public void buildEnvVars(AbstractBuild<?, ?> abstractBuild, EnvVars envVars) {
+            if (data != null) envVars.putAll(data);
         }
 
-        @Override
         public String getIconFileName() {
             return null;
         }
 
-        @Override
         public String getDisplayName() {
             return null;
         }
 
-        @Override
         public String getUrlName() {
             return null;
-        }
-
-        public Map<String, String> getData() {
-            return data;
         }
     }
 }
