@@ -75,10 +75,10 @@ public class CodeStreamPipelineCallable implements Callable<Map<String, String>,
                     JsonObject pipelineExecutionResponse = codeStreamClient.getPipelineExecutionResponse(pipelineId, execId);
                     ExecutionStatus pipelineExecStatus = codeStreamClient.getPipelineExecStatus(pipelineExecutionResponse);
                     data.put("CS_PIPELINE_EXECUTION_STATUS", pipelineExecStatus.toString());
+                    data.put("CS_PIPELINE_EXECUTION_RES", pipelineExecutionResponse.toString());
                     switch (pipelineExecStatus) {
                         case COMPLETED:
                             System.out.println("Pipeline complete successfully");
-                            data.put("CS_PIPELINE_EXECUTION_RES", pipelineExecutionResponse.toString());
                             break;
                         case FAILED:
                             System.out.println("Pipeline execution failed");
