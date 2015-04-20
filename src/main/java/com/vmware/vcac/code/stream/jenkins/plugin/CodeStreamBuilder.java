@@ -90,7 +90,7 @@ public class CodeStreamBuilder extends Builder implements Serializable{
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         PrintStream logger = listener.getLogger();
-        logger.println("Starting CodeStream pipeline execution");
+        logger.println("Starting CodeStream pipeline execution of pipeline : " + pipelineName);
         CodeStreamPipelineCallable callable = new CodeStreamPipelineCallable(serverUrl, userName, password, tenant, pipelineName,  pipelineParams, waitExec);
         Map<String, String> envVariables = launcher.getChannel().call(callable);
         CodeStreamEnvAction action = new CodeStreamEnvAction();
