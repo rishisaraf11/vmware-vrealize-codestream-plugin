@@ -98,12 +98,8 @@ public class CodeStreamClient {
         return response;
     }
 
-    public ExecutionStatus getPipelineExecStatus(String pipelineId, String pipelineExecId) throws IOException {
+    public ExecutionStatus getPipelineExecStatus(JsonObject stringJsonAsObject) throws IOException {
         ExecutionStatus executionStatus = null;
-        String url = String.format(CHECK_EXEC_STATUS, pipelineId, pipelineExecId);
-        HttpResponse httpResponse = this.get(url);
-        String responseAsJson = this.getResponseAsJsonString(httpResponse);
-        JsonObject stringJsonAsObject = getJsonObject(responseAsJson);
         JsonElement executionInfoObj = stringJsonAsObject.get("executionInfo");
         if (executionInfoObj != null) {
             String executionStatusString = executionInfoObj.getAsJsonObject().get("status").getAsString();
@@ -114,8 +110,15 @@ public class CodeStreamClient {
         return executionStatus;
     }
 
+    public JsonObject getPipelineExecutionResponse(String pipelineId, String pipelineExecId) throws IOException {
+        String url = String.format(CHECK_EXEC_STATUS, pipelineId, pipelineExecId);
+        HttpResponse httpResponse = this.get(url);
+        String responseAsJson = this.getResponseAsJsonString(httpResponse);
+        return getJsonObject(responseAsJson);
+    }
+
     public boolean isPipelineCompleted(String pipelineId, String pipelineExecId) throws IOException {
-        ExecutionStatus pipelineExecStatus = this.getPipelineExecStatus(pipelineId, pipelineExecId);
+        ExecutionStatus pipelineExecStatus = this.getPipelineExecStatus(this.getPipelineExecutionResponse(pipelineId, pipelineExecId));
         switch (pipelineExecStatus) {
             case COMPLETED:
             case FAILED:
