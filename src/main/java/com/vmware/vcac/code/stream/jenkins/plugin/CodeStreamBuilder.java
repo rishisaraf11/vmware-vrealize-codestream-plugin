@@ -1,23 +1,32 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
+import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.util.CodeStreamPluginHelper;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
-import hudson.model.EnvironmentContributingAction;
+import hudson.Util;
+import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
+import hudson.util.FormValidation;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
+
+import static hudson.Util.fixEmptyAndTrim;
 
 /**
  * Sample {@link Builder}.
@@ -36,7 +45,7 @@ import java.util.Map;
  *
  * @author Rishi Saraf
  */
-public class CodeStreamBuilder extends Builder implements Serializable{
+public class CodeStreamBuilder extends Builder implements Serializable {
 
     private String serverUrl;
     private String userName;
@@ -50,11 +59,11 @@ public class CodeStreamBuilder extends Builder implements Serializable{
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public CodeStreamBuilder(String serverUrl, String userName, String password, String tenant, String pipelineName, boolean waitExec, List<PipelineParam> pipelineParams) {
-        this.serverUrl = serverUrl;
-        this.userName = userName;
-        this.password = password;
-        this.tenant = tenant;
-        this.pipelineName = pipelineName;
+        this.serverUrl = fixEmptyAndTrim(serverUrl);
+        this.userName = fixEmptyAndTrim(userName);
+        this.password = fixEmptyAndTrim(password);
+        this.tenant = fixEmptyAndTrim(tenant);
+        this.pipelineName = fixEmptyAndTrim(pipelineName);
         this.waitExec = waitExec;
         this.pipelineParams = pipelineParams;
     }
@@ -90,8 +99,12 @@ public class CodeStreamBuilder extends Builder implements Serializable{
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         PrintStream logger = listener.getLogger();
-        logger.println("Starting CodeStream pipeline execution of pipeline : " + pipelineName);
-        CodeStreamPipelineCallable callable = new CodeStreamPipelineCallable(serverUrl, userName, password, tenant, pipelineName,  pipelineParams, waitExec);
+        CodeStreamPluginHelper helper = new CodeStreamPluginHelper(build.getAction(ParametersAction.class));
+        PluginParam param = new PluginParam(helper.replaceBuildParamWithValue(serverUrl), helper.replaceBuildParamWithValue(userName),
+                helper.replaceBuildParamWithValue(password), helper.replaceBuildParamWithValue(tenant), helper.replaceBuildParamWithValue(pipelineName), waitExec, helper.replaceBuildParamWithValue(pipelineParams));
+        logger.println("Starting CodeStream pipeline execution of pipeline : " + param.getPipelineName());
+        param.validate();
+        CodeStreamPipelineCallable callable = new CodeStreamPipelineCallable(param);
         Map<String, String> envVariables = launcher.getChannel().call(callable);
         CodeStreamEnvAction action = new CodeStreamEnvAction();
         action.addAll(envVariables);
@@ -124,6 +137,12 @@ public class CodeStreamBuilder extends Builder implements Serializable{
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
+        private static final Logger log;
+
+        static {
+            log = Logger.getLogger(DescriptorImpl.class.getName());
+        }
+
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -146,7 +165,7 @@ public class CodeStreamBuilder extends Builder implements Serializable{
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
-            // Indicates that this builder can be used with all kinds of project types 
+            // Indicates that this builder can be used with all kinds of project types
             return true;
         }
 
@@ -171,6 +190,85 @@ public class CodeStreamBuilder extends Builder implements Serializable{
             save();
             return super.configure(req, formData);
         }
+
+        public FormValidation doCheckServerUrl(
+                @QueryParameter final String value) {
+
+            String url = Util.fixEmptyAndTrim(value);
+            if (url == null)
+                return FormValidation.error("Please enter CodeStream server URL.");
+
+            if (url.indexOf('$') >= 0)
+                // set by variable, can't validate
+                return FormValidation.ok();
+
+            try {
+                new URL(value).toURI();
+            } catch (MalformedURLException e) {
+                return FormValidation.error("This is not a valid URI");
+            } catch (URISyntaxException e) {
+                return FormValidation.error("This is not a valid URI");
+            }
+
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckUserName(
+                @QueryParameter final String value) {
+
+            String url = Util.fixEmptyAndTrim(value);
+            if (url == null)
+                return FormValidation.error("Please enter user name.");
+
+            if (url.indexOf('$') >= 0)
+                // set by variable, can't validate
+                return FormValidation.ok();
+
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckPassword(
+                @QueryParameter final String value) {
+
+            String url = Util.fixEmptyAndTrim(value);
+            if (url == null)
+                return FormValidation.error("Please enter password.");
+
+            if (url.indexOf('$') >= 0)
+                // set by variable, can't validate
+                return FormValidation.error("Environment variable cannot be used in password.");
+
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckTenant(
+                @QueryParameter final String value) {
+
+            String url = Util.fixEmptyAndTrim(value);
+            if (url == null)
+                return FormValidation.error("Please enter tenant.");
+
+            if (url.indexOf('$') >= 0)
+                // set by variable, can't validate
+                return FormValidation.ok();
+
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckPipelineName(
+                @QueryParameter final String value) {
+
+            String url = Util.fixEmptyAndTrim(value);
+            if (url == null)
+                return FormValidation.error("Please enter pipeline name.");
+
+            if (url.indexOf('$') >= 0)
+                // set by variable, can't validate
+                return FormValidation.ok();
+
+            return FormValidation.ok();
+        }
+
 
         public String getServerUrl() {
             return serverUrl;
@@ -202,7 +300,7 @@ public class CodeStreamBuilder extends Builder implements Serializable{
         }
 
         private void addAll(Map<String, String> map) {
-              data.putAll(map);
+            data.putAll(map);
         }
 
         @Override
