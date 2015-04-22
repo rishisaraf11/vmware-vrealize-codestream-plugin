@@ -32,7 +32,6 @@ public class CodeStreamPipelineCallable implements Callable<Map<String, String>,
 
     }
 
-    @Override
     public Map<String, String> call() throws IOException {
         Map<String, String> data = new HashMap<String, String>();
         try {
@@ -99,11 +98,5 @@ public class CodeStreamPipelineCallable implements Callable<Map<String, String>,
         }
         return paramMap;
     }
-
-    @Override
-    public void checkRoles(RoleChecker roleChecker) throws SecurityException {
-
-    }
-
 
 }

@@ -3,6 +3,7 @@ package com.vmware.vcac.code.stream.jenkins.plugin.util;
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
 import hudson.model.ParameterValue;
 import hudson.model.ParametersAction;
+import hudson.model.StringParameterValue;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
@@ -24,10 +25,8 @@ public class CodeStreamPluginHelper {
     public String replaceBuildParamWithValue(String paramValue) {
         if (StringUtils.isNotBlank(paramValue) && paramValue.startsWith("$")) {
             ParameterValue parameter = parametersAction.getParameter(paramValue.replace("$", ""));
-            if (parameter != null && parameter.getValue() != null) {
-                return fixEmptyAndTrim(parameter.getValue().toString());
-            } else {
-                return null;
+            if (parameter != null && parameter instanceof StringParameterValue) {
+                return fixEmptyAndTrim(((StringParameterValue) parameter).value);
             }
         }
         return fixEmptyAndTrim(paramValue);

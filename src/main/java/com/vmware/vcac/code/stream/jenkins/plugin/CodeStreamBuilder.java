@@ -1,5 +1,8 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
+import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.util.CodeStreamPluginHelper;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
