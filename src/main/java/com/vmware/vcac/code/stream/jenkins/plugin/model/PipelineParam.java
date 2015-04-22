@@ -1,4 +1,4 @@
-package com.vmware.vcac.code.stream.jenkins.plugin;
+package com.vmware.vcac.code.stream.jenkins.plugin.model;
 
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;

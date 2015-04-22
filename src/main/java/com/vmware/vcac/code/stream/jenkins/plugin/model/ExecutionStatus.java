@@ -1,4 +1,4 @@
-package com.vmware.vcac.code.stream.jenkins.plugin;
+package com.vmware.vcac.code.stream.jenkins.plugin.model;
 
 /**
  * Created by rsaraf on 3/23/2015.

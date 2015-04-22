@@ -1,9 +1,9 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
 import com.google.gson.*;
-import hudson.EnvVars;
-import hudson.model.AbstractBuild;
-import hudson.model.EnvironmentContributingAction;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.ExecutionStatus;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -18,37 +18,37 @@ import org.apache.http.ssl.SSLContextBuilder;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by rsaraf on 3/23/2015.
  */
 public class CodeStreamClient {
     private String token;
-    private String CODESTREAM_API_URL = "";
     private String FETCH_TOKEN = "";
     private String CHECK_EXEC_STATUS = "";
     private String FETCH_PIPELINE = "";
     private String EXECUTE_PIPELINE = "";
     private String TOKEN_JSON = "{\"username\": \"%s\", \"password\": \"%s\", \"tenant\": \"%s\"}";
-    private String EXEC_PAYLOAD = "{\"description\": \"%s\", \"pipelineParams\": %s}";
+    private PluginParam params;
 
-    public CodeStreamClient(String serverUrl, String userName, String password, String tenant) throws IOException {
-        this.FETCH_TOKEN = serverUrl + "/identity/api/tokens";
-        this.CODESTREAM_API_URL = serverUrl + "/release-management-service/api/release-pipelines/";
-        this.FETCH_PIPELINE = CODESTREAM_API_URL + "?name=%s";
-        this.EXECUTE_PIPELINE = CODESTREAM_API_URL + "%s/executions";
-        this.CHECK_EXEC_STATUS = CODESTREAM_API_URL + "%s/executions/%s";
-        this.token = populateToken(userName, password, tenant);
+    public CodeStreamClient(PluginParam params) throws IOException {
+        this.params = params;
+        this.FETCH_TOKEN = params.getServerUrl() + "/identity/api/tokens";
+        String codeStreamApiUrl = params.getServerUrl() + "/release-management-service/api/release-pipelines/";
+        this.FETCH_PIPELINE = codeStreamApiUrl + "?name=%s";
+        this.EXECUTE_PIPELINE = codeStreamApiUrl + "%s/executions";
+        this.CHECK_EXEC_STATUS = codeStreamApiUrl + "%s/executions/%s";
+        this.token = populateToken();
     }
 
-    private String populateToken(String userName, String password, String tenant) throws IOException {
-        String tokenPayload = String.format(TOKEN_JSON, userName, password, tenant);
+    private String populateToken() throws IOException {
+        String tokenPayload = String.format(TOKEN_JSON, params.getUserName(), params.getPassword(), params.getTenant());
         HttpResponse httpResponse = this.post(FETCH_TOKEN, tokenPayload);
         String responseAsJson = this.getResponseAsJsonString(httpResponse);
         JsonObject stringJsonAsObject = getJsonObject(responseAsJson);
@@ -63,7 +63,7 @@ public class CodeStreamClient {
 
     public JsonObject fetchPipeline(String pipelineName) throws IOException {
         JsonObject response = null;
-        String url = String.format(FETCH_PIPELINE, pipelineName);
+        String url = String.format(FETCH_PIPELINE, getEncodedString(pipelineName));
         HttpResponse pipelineResponse = get(url);
         String responseAsJson = this.getResponseAsJsonString(pipelineResponse);
         JsonObject stringJsonAsObject = getJsonObject(responseAsJson);
@@ -83,6 +83,10 @@ public class CodeStreamClient {
             }
         }
         return response;
+    }
+
+    private String getEncodedString(String pipelineName) throws UnsupportedEncodingException {
+        return URLEncoder.encode(pipelineName, "UTF-8");
     }
 
     public JsonObject executePipeline(String pipelineId, List<PipelineParam> pipelineParams) throws IOException {
