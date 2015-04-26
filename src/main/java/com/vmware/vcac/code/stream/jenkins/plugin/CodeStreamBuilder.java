@@ -2,7 +2,7 @@ package com.vmware.vcac.code.stream.jenkins.plugin;
 
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
-import com.vmware.vcac.code.stream.jenkins.plugin.util.CodeStreamPluginHelper;
+import com.vmware.vcac.code.stream.jenkins.plugin.util.EnvVariableResolver;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
@@ -99,7 +99,7 @@ public class CodeStreamBuilder extends Builder implements Serializable {
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         PrintStream logger = listener.getLogger();
-        CodeStreamPluginHelper helper = new CodeStreamPluginHelper(build.getAction(ParametersAction.class));
+        EnvVariableResolver helper = new EnvVariableResolver(build, listener);
         PluginParam param = new PluginParam(helper.replaceBuildParamWithValue(serverUrl), helper.replaceBuildParamWithValue(userName),
                 helper.replaceBuildParamWithValue(password), helper.replaceBuildParamWithValue(tenant), helper.replaceBuildParamWithValue(pipelineName), waitExec, helper.replaceBuildParamWithValue(pipelineParams));
         logger.println("Starting CodeStream pipeline execution of pipeline : " + param.getPipelineName());
