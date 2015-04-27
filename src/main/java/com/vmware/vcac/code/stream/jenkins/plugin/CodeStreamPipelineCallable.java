@@ -4,9 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import com.vmware.vcac.code.stream.jenkins.plugin.model.ExecutionStatus;
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.ReleasePipelineExecutionInfoParser;
+import com.vmware.vcac.devops.rp.api.beans.execution.ExecutionStatus;
+import com.vmware.vcac.devops.rp.api.beans.execution.TaskExecutionInfo;
 import hudson.model.AbstractBuild;
 import hudson.remoting.Callable;
 
@@ -59,21 +61,23 @@ public class CodeStreamPipelineCallable implements Callable<Map<String, String>,
                 data.put("CS_PIPELINE_EXECUTION_ID", execId);
                 System.out.println("Pipeline executed successfully with execution id :" + execId);
                 if (params.isWaitExec()) {
-                    while (!codeStreamClient.isPipelineCompleted(pipelineId, execId)) {
+                    ReleasePipelineExecutionInfoParser parser = codeStreamClient.getPipelineExecutionResponse(pipelineId, execId);
+                    while (!parser.isPipelineCompleted()) {
                         System.out.println("Waiting for pipeline execution to complete");
                         Thread.sleep(10 * 1000);
+                        parser = codeStreamClient.getPipelineExecutionResponse(pipelineId, execId);
                     }
-                    JsonObject pipelineExecutionResponse = codeStreamClient.getPipelineExecutionResponse(pipelineId, execId);
-                    ExecutionStatus pipelineExecStatus = codeStreamClient.getPipelineExecStatus(pipelineExecutionResponse);
+                    ExecutionStatus pipelineExecStatus = parser.getPipelineExecStatus();
                     data.put("CS_PIPELINE_EXECUTION_STATUS", pipelineExecStatus.toString());
-                    data.put("CS_PIPELINE_EXECUTION_RES", pipelineExecutionResponse.toString());
+                    data.put("CS_PIPELINE_EXECUTION_RES", parser.getPipelineExeResponseAsJson());
                     switch (pipelineExecStatus) {
                         case COMPLETED:
                             System.out.println("Pipeline complete successfully");
                             break;
                         case FAILED:
+                            TaskExecutionInfo failedTask = parser.getFailedTask();
                             System.out.println("Pipeline execution failed");
-                            throw new IOException("Pipeline execution failed. Please go to CodeStream for more details");
+                            throw new IOException(failedTask.getTask().getName()  + " task failed with message :" + failedTask.getMessages());
                         case CANCELED:
                             throw new IOException("Pipeline execution cancelled. Please go to CodeStream for more details");
                     }

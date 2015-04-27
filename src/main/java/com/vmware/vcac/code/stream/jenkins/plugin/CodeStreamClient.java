@@ -1,9 +1,9 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
 import com.google.gson.*;
-import com.vmware.vcac.code.stream.jenkins.plugin.model.ExecutionStatus;
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.ReleasePipelineExecutionInfoParser;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -102,35 +102,12 @@ public class CodeStreamClient {
         return response;
     }
 
-    public ExecutionStatus getPipelineExecStatus(JsonObject stringJsonAsObject) throws IOException {
-        ExecutionStatus executionStatus = null;
-        JsonElement executionInfoObj = stringJsonAsObject.get("executionInfo");
-        if (executionInfoObj != null) {
-            String executionStatusString = executionInfoObj.getAsJsonObject().get("status").getAsString();
-            if (StringUtils.isNotBlank(executionStatusString)) {
-                executionStatus = ExecutionStatus.fromValue(executionStatusString);
-            }
-        }
-        return executionStatus;
-    }
 
-    public JsonObject getPipelineExecutionResponse(String pipelineId, String pipelineExecId) throws IOException {
+    public ReleasePipelineExecutionInfoParser getPipelineExecutionResponse(String pipelineId, String pipelineExecId) throws IOException {
         String url = String.format(CHECK_EXEC_STATUS, pipelineId, pipelineExecId);
         HttpResponse httpResponse = this.get(url);
         String responseAsJson = this.getResponseAsJsonString(httpResponse);
-        return getJsonObject(responseAsJson);
-    }
-
-    public boolean isPipelineCompleted(String pipelineId, String pipelineExecId) throws IOException {
-        ExecutionStatus pipelineExecStatus = this.getPipelineExecStatus(this.getPipelineExecutionResponse(pipelineId, pipelineExecId));
-        switch (pipelineExecStatus) {
-            case COMPLETED:
-            case FAILED:
-            case CANCELED:
-                return true;
-            default:
-                return false;
-        }
+        return new ReleasePipelineExecutionInfoParser(responseAsJson);
     }
 
     private JsonObject getJsonObject(String responseAsJson) {
