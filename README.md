@@ -26,9 +26,8 @@ fresh Jenkins instance on a TCP/IP port for you to test against.
 Maven does have a habit of downloading the internet, but it's at least
 easy to use to hack on a plugin of something.
 
-
 Maintainer
 ----------
-Rishi Saraf <rsaraf@vmware.com>
+Rishi Saraf<rsaraf@vmware.com>
 
 
