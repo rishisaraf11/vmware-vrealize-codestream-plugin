@@ -7,7 +7,10 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.Util;
-import hudson.model.*;
+import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
+import hudson.model.BuildListener;
+import hudson.model.EnvironmentContributingAction;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
@@ -143,18 +146,6 @@ public class CodeStreamBuilder extends Builder implements Serializable {
             log = Logger.getLogger(DescriptorImpl.class.getName());
         }
 
-        /**
-         * To persist global configuration information,
-         * simply store it in a field and call save().
-         * <p/>
-         * <p/>
-         * If you don't want fields to be persisted, use <tt>transient</tt>.
-         */
-        private String serverUrl;
-        private String userName;
-        private String password;
-        private String tenant;
-        private String pipelineName;
 
         /**
          * In order to load the persisted global configuration, you have to
@@ -176,20 +167,6 @@ public class CodeStreamBuilder extends Builder implements Serializable {
             return "Execute CodeStream Pipeline";
         }
 
-        @Override
-        public boolean configure(StaplerRequest req, net.sf.json.JSONObject formData) throws FormException {
-            // To persist global configuration information,
-            // set that to properties and call save().
-            // ^Can also use req.bindJSON(this, formData);
-            //  (easier when there are many fields; need set* methods for this, like setUseFrench)
-            serverUrl = formData.getString("serverUrl");
-            tenant = formData.getString("tenant");
-            userName = formData.getString("userName");
-            password = formData.getString("password");
-            pipelineName = formData.getString("pipelineName");
-            save();
-            return super.configure(req, formData);
-        }
 
         public FormValidation doCheckServerUrl(
                 @QueryParameter final String value) {
@@ -269,26 +246,6 @@ public class CodeStreamBuilder extends Builder implements Serializable {
             return FormValidation.ok();
         }
 
-
-        public String getServerUrl() {
-            return serverUrl;
-        }
-
-        public String getUserName() {
-            return userName;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-
-        public String getTenant() {
-            return tenant;
-        }
-
-        public String getPipelineName() {
-            return pipelineName;
-        }
     }
 
     public static class CodeStreamEnvAction implements EnvironmentContributingAction {
