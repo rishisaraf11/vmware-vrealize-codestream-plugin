@@ -12,7 +12,7 @@ import java.io.Serializable;
  * Created by rsaraf on 3/23/2015.
  */
 @ExportedBean
-public class PipelineParam extends AbstractDescribableImpl<PipelineParam> implements Serializable {
+public class PipelineParam extends AbstractDescribableImpl<PipelineParam> implements Serializable, Cloneable {
     private String name;
 
     private String type="STRING";
@@ -64,5 +64,10 @@ public class PipelineParam extends AbstractDescribableImpl<PipelineParam> implem
         public String getDisplayName() {
             return "";
         }
+    }
+
+    @Override
+    public PipelineParam clone() throws CloneNotSupportedException {
+        return (PipelineParam)super.clone();
     }
 }

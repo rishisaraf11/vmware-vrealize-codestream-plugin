@@ -29,16 +29,20 @@ public class EnvVariableResolver {
     }
 
     public List<PipelineParam> replaceBuildParamWithValue(List<PipelineParam> pipelineParams) {
+        List<PipelineParam> temp = new ArrayList<PipelineParam>();
         if (pipelineParams != null) {
             for (PipelineParam param : pipelineParams) {
-                param.setName(replaceBuildParamWithValue(param.getName()));
-                param.setValue(replaceBuildParamWithValue(param.getValue()));
+                try {
+                    PipelineParam cloned = param.clone();
+                    cloned.setName(replaceBuildParamWithValue(cloned.getName()));
+                    cloned.setValue(replaceBuildParamWithValue(cloned.getValue()));
+                    temp.add(cloned);
+                } catch (CloneNotSupportedException e) {
+                    new IOException("Not able to clone pipeline param");
+                }
             }
-        } else {
-            pipelineParams = new ArrayList<PipelineParam>();
         }
-
-        return pipelineParams;
+        return temp;
     }
 
     public EnvVars getEnvironment() {
