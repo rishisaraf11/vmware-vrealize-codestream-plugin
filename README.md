@@ -29,6 +29,7 @@ easy to use to hack on a plugin of something.
 Maintainer
 ----------
 Rishi Saraf<rsaraf@vmware.com>
-Change to invoke pipeline
+Invoke Jenkins Build
+
 
 
