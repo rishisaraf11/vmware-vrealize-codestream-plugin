@@ -1,13 +1,14 @@
 package com.vmware.vcac.code.stream.jenkins.plugin.util;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
 import hudson.EnvVars;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import static hudson.Util.fixEmptyAndTrim;
 

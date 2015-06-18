@@ -1,17 +1,5 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
-import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
-import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
-import com.vmware.vcac.code.stream.jenkins.plugin.model.ReleasePipelineExecutionInfoParser;
-import com.vmware.vcac.devops.rp.api.beans.execution.ExecutionStatus;
-import com.vmware.vcac.devops.rp.api.beans.execution.TaskExecutionInfo;
-import hudson.model.AbstractBuild;
-import hudson.remoting.Callable;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Type;
@@ -19,6 +7,19 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.ExecutionStatus;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.TaskExecutionInfo;
+import com.vmware.vcac.code.stream.jenkins.plugin.util.ReleasePipelineExecutionInfoParser;
+import hudson.model.AbstractBuild;
+import hudson.remoting.Callable;
+
 
 import static hudson.Util.fixEmptyAndTrim;
 

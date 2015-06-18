@@ -1,10 +1,14 @@
-package com.vmware.vcac.code.stream.jenkins.plugin.model;
-
-import com.vmware.vcac.devops.rp.api.beans.execution.*;
-import org.codehaus.jackson.map.ObjectMapper;
+package com.vmware.vcac.code.stream.jenkins.plugin.util;
 
 import java.io.IOException;
 import java.util.List;
+
+import com.vmware.vcac.code.stream.jenkins.plugin.model.ExecutionInfo;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.ExecutionStatus;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.ReleasePipelineExecutionInfo;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.StageExecutionInfo;
+import com.vmware.vcac.code.stream.jenkins.plugin.model.TaskExecutionInfo;
+import org.codehaus.jackson.map.ObjectMapper;
 
 /**
  * Created by rsaraf on 4/27/2015.
