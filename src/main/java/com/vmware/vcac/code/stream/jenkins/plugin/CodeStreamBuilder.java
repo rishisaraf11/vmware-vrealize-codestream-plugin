@@ -1,5 +1,16 @@
 package com.vmware.vcac.code.stream.jenkins.plugin;
 
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PipelineParam;
 import com.vmware.vcac.code.stream.jenkins.plugin.model.PluginParam;
 import com.vmware.vcac.code.stream.jenkins.plugin.util.EnvVariableResolver;
@@ -18,16 +29,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
 
 import static hudson.Util.fixEmptyAndTrim;
 

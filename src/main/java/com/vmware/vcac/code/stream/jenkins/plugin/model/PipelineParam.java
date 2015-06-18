@@ -1,12 +1,12 @@
 package com.vmware.vcac.code.stream.jenkins.plugin.model;
 
+import java.io.Serializable;
+
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.export.ExportedBean;
-
-import java.io.Serializable;
 
 /**
  * Created by rsaraf on 3/23/2015.

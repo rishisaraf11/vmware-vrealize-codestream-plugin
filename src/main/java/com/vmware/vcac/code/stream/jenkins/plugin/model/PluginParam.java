@@ -1,15 +1,10 @@
 package com.vmware.vcac.code.stream.jenkins.plugin.model;
 
-import hudson.model.ParameterValue;
-import hudson.model.ParametersAction;
-import org.apache.commons.lang.StringUtils;
-
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 
-import static hudson.Util.fixEmptyAndTrim;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * Created by rsaraf on 4/22/2015.
