@@ -10,26 +10,34 @@ Integrates Jenkins to vRealize CodeStream
 This plugin integrates VMware vRealize CodeStream system to Jenkins. The plugin requires the plugin hpi file to be installed on the target machine.
 With this plugin you can run any vRealize CodeStream activated pipeline.
 
+Development
+===========
+
+Start the local Jenkins instance:
+
+    mvn hpi:run
+
 
 Installing
 ----------
-You can install plugin using Jenkins plugin manager  advance option. Just upload the hpi file and restart the jenkins server
+Run
 
-Building
---------
+	mvn hpi:hpi
 
-$ mvn hpi:run
+to create the plugin .hpi file.
 
-This will build the plugin, grab everything needed and start you up a
-fresh Jenkins instance on a TCP/IP port for you to test against.
 
-Maven does have a habit of downloading the internet, but it's at least
-easy to use to hack on a plugin of something.
+To install:
+
+1. copy the resulting ./target/codestream-jenkins-plugin.hpi file to the $JENKINS_HOME/plugins directory. Don't forget to restart Jenkins afterwards.
+
+2. or use the plugin management console (http://example.com:8080/pluginManager/advanced) to upload the hpi file. You have to restart Jenkins in order to find the pluing in the installed plugins list.
+
 
 Maintainer
 ----------
-Rishi Saraf<rsaraf@vmware.com>
-Make change to invoke CodeStreamPipeline after Jenkins Build
+Rishi Saraf<rishisaraf11@gmail.com>
+
 
 
 
