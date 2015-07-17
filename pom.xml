@@ -11,12 +11,12 @@
     <relativePath/>
   </parent>
   <groupId>com.vmware.vcac</groupId>
-  <artifactId>codestream-jenkins-plugin</artifactId>
+  <artifactId>vmware-vrealize-codestream-plugin</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>hpi</packaging>
 
-  <name>CodeStream Plugin</name>
-  <description>Plugin to invoke CodeStream pipeline api</description>
+  <name>Vmware vRealize CodeStream Plugin</name>
+  <description>Plugin to invoke vRealize CodeStream pipeline execution api</description>
   <url></url>
   <licenses>
     <license>
