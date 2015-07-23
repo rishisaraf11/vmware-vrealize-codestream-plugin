@@ -10,7 +10,7 @@ Configuration
 
 1) Build step : On Job configuration page click on Add build step select “Execute CodeStream Pipeline” option
 
-![Build step](/docs/add-build-step.png)
+![Build step](/doc/add-build-step.png)
 
 2) Configure :  Configure CodeStream pipeline like show in image. Below is the description of each field
 
@@ -22,7 +22,7 @@ Configuration
      Execute and Wait - If this checkbox is checked the job will wait for pipeline execution to complete or fail.
      Add Parameter - If you want to override default value of any pipeline property then you can use this option. Click on Add Parameter and provide property name in Parameter Name. New  value in Parameter Value. For all the other properties default value will be used.
 
-     ![Configure](/docs/configuration.png)
+     ![Configure](/doc/configuration.png)
 
 
 Jenkins version supported
